@@ -21,22 +21,26 @@ from src.utils import save_object, evaluate_models
 
 @dataclass
 class ModelTrainerConfig:
+    # Configuration class to store model-related configurations
     trained_model_file_path=os.path.join("artifacts","model.pkl")
 
 class ModelTrainer:
     def __init__(self):
+        # Initialize ModelTrainer with ModelTrainerConfig
         self.model_trainer_config=ModelTrainerConfig()
 
     
     def initiate_model_trainer(self,train_array,test_array):
         try:
             logging.info("splitting train and test input data")
+            # Splitting train and test data
             X_train,y_train,X_test,y_test=(
                 train_array[:,:-1],
                 train_array[:,-1],
                 test_array[:,:-1],
                 test_array[:,-1]
             )
+            # Define a dictionary of regression models to be evaluated
             models = {
                 "Random Forest": RandomForestRegressor(),
                 "Decision Tree": DecisionTreeRegressor(),
@@ -48,6 +52,7 @@ class ModelTrainer:
                 "AdaBoost": AdaBoostRegressor()
             }
 
+            # Define hyperparameters grid for each model
             params={
                 "Decision Tree": {
                     'criterion':['squared_error', 'friedman_mse', 'absolute_error', 'poisson'],
@@ -91,27 +96,28 @@ class ModelTrainer:
                 
             }
 
+            # Evaluate models
             model_report:dict=evaluate_models(X_train=X_train, y_train=y_train, X_test=X_test,y_test=y_test,
                                              models=models,param=params)
             
+            # Find the best model based on the evaluation report
             best_model_score = max(sorted(model_report.values()))
-
-            best_model_name = list(model_report.keys())[
-                list(model_report.values()).index(best_model_score)
-            ]
+            best_model_name = list(model_report.keys())[list(model_report.values()).index(best_model_score)]
             best_model = models[best_model_name]
 
+            # If the best model's score is below a threshold, raise an exception
             if best_model_score<0.6:
                 raise CustomException("No best model found")
             logging.info(f"Found best model on both training and testing datasets")
 
+            # Save the best model to the specified file path
             save_object(
                 file_path=self.model_trainer_config.trained_model_file_path,
                 obj=best_model
             )
 
+            # Make predictions using the best model and calculate R-squared score
             predicted = best_model.predict(X_test)
-
             r2_scr = r2_score(y_test, predicted)
             return r2_scr
         
